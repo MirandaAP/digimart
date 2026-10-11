@@ -1,5 +1,5 @@
-import 'dart:io';
-
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -29,7 +29,7 @@ class _AboutDeveloperScreenState
   String description =
       'Mahasiswa Teknik Informatika yang tertarik dengan teknologi, desain, dan pengembangan aplikasi digital.';
 
-  String? profileImagePath;
+Uint8List? profileImageBytes;
 
   @override
   void initState() {
@@ -38,46 +38,85 @@ class _AboutDeveloperScreenState
   }
 
   Future<void> _loadProfile() async {
-    final prefs = await SharedPreferences.getInstance();
+  final prefs = await SharedPreferences.getInstance();
 
-    setState(() {
-      name = prefs.getString('developer_name') ??
-          'Jois Miranda Agunning Putri';
+  final savedImage = prefs.getString('profile_image_bytes');
 
-      study = prefs.getString('developer_study') ??
-          'Teknik Informatika';
+  Uint8List? imageBytes;
 
-      description = prefs.getString(
-            'developer_description',
-          ) ??
-          'Mahasiswa Teknik Informatika yang tertarik dengan teknologi, desain, dan pengembangan aplikasi digital.';
-
-      profileImagePath =
-          prefs.getString('profile_image_path');
-    });
+  if (savedImage != null && savedImage.isNotEmpty) {
+    try {
+      imageBytes = base64Decode(savedImage);
+    } catch (_) {
+      await prefs.remove('profile_image_bytes');
+    }
   }
 
+  // Hapus data path lama yang tidak kompatibel dengan web.
+  await prefs.remove('profile_image_path');
+
+  if (!mounted) return;
+
+  setState(() {
+    name = prefs.getString('developer_name') ??
+        'Jois Miranda Agunning Putri';
+
+    study = prefs.getString('developer_study') ??
+        'Teknik Informatika';
+
+    description = prefs.getString('developer_description') ??
+        'Mahasiswa Teknik Informatika yang tertarik dengan teknologi, desain, dan pengembangan aplikasi digital.';
+
+    profileImageBytes = imageBytes;
+  });
+}
+
   Future<void> _pickProfileImage() async {
+  try {
     final ImagePicker picker = ImagePicker();
 
     final XFile? image = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 85,
+      imageQuality: 70,
+      maxWidth: 800,
+      maxHeight: 800,
     );
 
     if (image == null) return;
 
+    final Uint8List bytes = await image.readAsBytes();
+
     final prefs = await SharedPreferences.getInstance();
 
     await prefs.setString(
-      'profile_image_path',
-      image.path,
+      'profile_image_bytes',
+      base64Encode(bytes),
     );
 
+    // Hapus data foto dengan format lama.
+    await prefs.remove('profile_image_path');
+
+    if (!mounted) return;
+
     setState(() {
-      profileImagePath = image.path;
+      profileImageBytes = bytes;
     });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Foto profil berhasil diperbarui!'),
+      ),
+    );
+  } catch (e) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Gagal memilih foto: $e'),
+      ),
+    );
   }
+}
 
   Future<void> _editProfile() async {
     await Navigator.push(
@@ -335,20 +374,26 @@ class _AboutDeveloperScreenState
   }
 
   Widget _buildProfileImage() {
-    if (profileImagePath != null &&
-        profileImagePath!.isNotEmpty &&
-        File(profileImagePath!).existsSync()) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(30),
-        child: Image.file(
-          File(profileImagePath!),
-          width: 150,
-          height: 150,
-          fit: BoxFit.cover,
-        ),
-      );
-    }
+  if (profileImageBytes != null &&
+      profileImageBytes!.isNotEmpty) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(30),
+      child: Image.memory(
+        profileImageBytes!,
+        width: 150,
+        height: 150,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildDefaultProfileImage();
+        },
+      ),
+    );
+  }
 
+    return _buildDefaultProfileImage();
+  }
+
+  Widget _buildDefaultProfileImage() {
     return ClipRRect(
       borderRadius: BorderRadius.circular(30),
       child: Image.asset(
@@ -362,11 +407,7 @@ class _AboutDeveloperScreenState
             height: 150,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  pink,
-                  purple,
-                  blue,
-                ],
+                colors: [pink, purple, blue],
               ),
               borderRadius: BorderRadius.circular(30),
             ),

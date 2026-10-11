@@ -230,7 +230,7 @@ class _CartScreenState extends State<CartScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -320,7 +320,7 @@ class _CartScreenState extends State<CartScreen> {
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 12,
                     offset: const Offset(0, 5),
                   ),
@@ -563,8 +563,8 @@ class _CartScreenState extends State<CartScreen> {
         Text(
           title,
           style: TextStyle(
-            color: Colors.white.withOpacity(
-              isTotal ? 1 : 0.8,
+            color: Colors.white.withValues(
+              alpha: isTotal ? 1 : 0.8,
             ),
             fontWeight:
                 isTotal ? FontWeight.bold : FontWeight.normal,
